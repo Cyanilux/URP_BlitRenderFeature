@@ -2,15 +2,20 @@
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-// Blit Renderer Feature
-// Based on the Blit from the UniversalRenderingExamples
-// https://github.com/Unity-Technologies/UniversalRenderingExamples/tree/master/Assets/Scripts/Runtime/RenderPasses
-// Extended to allow for :
-// - Specific access to selecting a source and destination (via current camera's color / texture id / render texture object
-// - Automatic switching to using _AfterPostProcessTexture for After Rendering event
-// - Setting a _InverseView matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world.
-//      e.g. reconstruct world pos from depth : https://twitter.com/Cyanilux/status/1269353975058501636
-// @Cyanilux
+/*
+ * Blit Renderer Feature                                                https://github.com/Cyanilux/URP_BlitRenderFeature
+ * ------------------------------------------------------------------------------------------------------------------------
+ * Based on the Blit from the UniversalRenderingExamples
+ * https://github.com/Unity-Technologies/UniversalRenderingExamples/tree/master/Assets/Scripts/Runtime/RenderPasses
+ * 
+ * Extended to allow for :
+ * - Specific access to selecting a source and destination (via current camera's color / texture id / render texture object
+ * - Automatic switching to using _AfterPostProcessTexture for After Rendering event, in order to correctly handle the blit after post processing is applied
+ * - Setting a _InverseView matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world.
+ *     e.g. reconstruct world pos from depth : https://twitter.com/Cyanilux/status/1269353975058501636 
+ * ------------------------------------------------------------------------------------------------------------------------
+ * @Cyanilux
+*/
 public class Blit : ScriptableRendererFeature {
 
     public class BlitPass : ScriptableRenderPass {
@@ -24,6 +29,7 @@ public class Blit : ScriptableRendererFeature {
         private RenderTargetIdentifier destination { get; set; }
 
         RenderTargetHandle m_TemporaryColorTexture;
+        RenderTargetHandle m_DestinationTexture;
         string m_ProfilerTag;
 
         public BlitPass(RenderPassEvent renderPassEvent, BlitSettings settings, string tag) {
@@ -32,6 +38,9 @@ public class Blit : ScriptableRendererFeature {
             blitMaterial = settings.blitMaterial;
             m_ProfilerTag = tag;
             m_TemporaryColorTexture.Init("_TemporaryColorTexture");
+            if (settings.dstType == Target.TextureID) {
+                m_DestinationTexture.Init(settings.dstTextureId);
+            }
         }
 
         public void Setup(RenderTargetIdentifier source, RenderTargetIdentifier destination) {
@@ -49,6 +58,10 @@ public class Blit : ScriptableRendererFeature {
                 Shader.SetGlobalMatrix("_InverseView", renderingData.cameraData.camera.cameraToWorldMatrix);
             }
 
+            if (settings.dstType == Target.TextureID) {
+                cmd.GetTemporaryRT(m_DestinationTexture.id, opaqueDesc, filterMode);
+            }
+
             //Debug.Log($"src = {source},     dst = {destination} ");
             // Can't read and write to same color target, use a TemporaryRT
             if (source == destination || (settings.srcType == settings.dstType && settings.srcType == Target.CameraColor)) {
@@ -62,9 +75,12 @@ public class Blit : ScriptableRendererFeature {
             context.ExecuteCommandBuffer(cmd);
             CommandBufferPool.Release(cmd);
         }
-         
+        
         public override void FrameCleanup(CommandBuffer cmd) {
-            if (destination == BuiltinRenderTextureType.CameraTarget) {
+            if (settings.dstType == Target.TextureID) {
+                cmd.ReleaseTemporaryRT(m_DestinationTexture.id);
+            }
+            if (source == destination || (settings.srcType == settings.dstType && settings.srcType == Target.CameraColor)) {
                 cmd.ReleaseTemporaryRT(m_TemporaryColorTexture.id);
             }
         }
