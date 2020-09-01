@@ -4,8 +4,6 @@ using UnityEditor;
 [CustomPropertyDrawer(typeof(Blit.BlitSettings))]
 public class BlitEditor : PropertyDrawer {
 
-    private bool foldout = true;
-
     private bool createdStyles = false;
     private GUIStyle boldLabel;
 
