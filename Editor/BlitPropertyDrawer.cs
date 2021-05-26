@@ -31,7 +31,8 @@ public class BlitEditor : PropertyDrawer {
         EditorGUILayout.PropertyField(property.FindPropertyRelative("blitMaterial"));
         EditorGUILayout.PropertyField(property.FindPropertyRelative("blitMaterialPassIndex"));
         EditorGUILayout.PropertyField(property.FindPropertyRelative("setInverseViewMatrix"));
-        
+        EditorGUILayout.PropertyField(property.FindPropertyRelative("generateDepthNormals"));
+
         EditorGUILayout.Separator();
         EditorGUILayout.LabelField("Source", boldLabel);
         SerializedProperty srcType = property.FindPropertyRelative("srcType");

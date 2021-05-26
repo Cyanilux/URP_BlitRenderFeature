@@ -13,6 +13,8 @@ using UnityEngine.Rendering.Universal;
  * - Automatic switching to using _AfterPostProcessTexture for After Rendering event, in order to correctly handle the blit after post processing is applied
  * - Setting a _InverseView matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world.
  *     e.g. reconstruct world pos from depth : https://twitter.com/Cyanilux/status/1269353975058501636 
+ * - Enabling generation of a DepthNormals texture (use _CameraNormalsTexture)
+ *     This will only include shaders who have a DepthNormals pass (workaround: https://gist.github.com/Cyanilux/be5a796cf6ddb20f20a586b94be93f2b)
  * ------------------------------------------------------------------------------------------------------------------------
  * @Cyanilux
 */
@@ -46,6 +48,9 @@ public class Blit : ScriptableRendererFeature {
         public void Setup(RenderTargetIdentifier source, RenderTargetIdentifier destination) {
             this.source = source;
             this.destination = destination;
+
+            if (settings.generateDepthNormals)
+                ConfigureInput(ScriptableRenderPassInput.Normal);
         }
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
@@ -93,6 +98,7 @@ public class Blit : ScriptableRendererFeature {
         public Material blitMaterial = null;
         public int blitMaterialPassIndex = 0;
         public bool setInverseViewMatrix = false;
+        public bool generateDepthNormals = false;
 
         public Target srcType = Target.CameraColor;
         public string srcTextureId = "_CameraColorTexture";
