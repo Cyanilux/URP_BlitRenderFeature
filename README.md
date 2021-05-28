@@ -7,7 +7,7 @@ Extended to allow options for :<br />
 • Setting a **_InverseView** matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world. For example, reconstructing world position from depth, see : https://twitter.com/Cyanilux/status/1269353975058501636<br />
 • (URP v10) Enabling generation of DepthNormals (_CameraNormalsTexture)
 <br /><br />
-Based on the Blit (now renamed to FullscreenPass) from the [UniversalRenderingExamples](https://github.com/Unity-Technologies/UniversalRenderingExamples/tree/master/Assets/Scripts/Runtime/RenderPasses)
+Based on the Blit (now renamed to FullscreenFeature/Pass) from the [UniversalRenderingExamples](https://github.com/Unity-Technologies/UniversalRenderingExamples/tree/master/Assets/Scripts/Runtime/RenderPasses)
 <br /><br />
 @Cyanilux<br />
 :)
