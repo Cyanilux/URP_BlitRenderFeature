@@ -149,9 +149,11 @@ public class Blit : ScriptableRendererFeature {
 		settings.blitMaterialPassIndex = Mathf.Clamp(settings.blitMaterialPassIndex, -1, passIndex);
 		blitPass = new BlitPass(settings.Event, settings, name);
 
+		#if !UNITY_2021_2_OR_NEWER
 		if (settings.Event == RenderPassEvent.AfterRenderingPostProcessing) {
 			Debug.LogWarning("Note that the \"After Rendering Post Processing\"'s Color target doesn't seem to work? (or might work, but doesn't contain the post processing) :( -- Use \"After Rendering\" instead!");
 		}
+		#endif
 
 		if (settings.graphicsFormat == UnityEngine.Experimental.Rendering.GraphicsFormat.None) {
 			settings.graphicsFormat = SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.LDR);
