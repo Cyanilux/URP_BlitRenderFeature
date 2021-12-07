@@ -24,12 +24,15 @@ public class BlitEditor : PropertyDrawer {
         EditorGUILayout.PropertyField(_event);
 
 		// "After Rendering Post Processing" Warning
+		#if !UNITY_2021_2_OR_NEWER
+		// Think the AfterRenderingPostProcessing event now works correctly in 2021
         if (_event.intValue == (int)UnityEngine.Rendering.Universal.RenderPassEvent.AfterRenderingPostProcessing) {
             EditorGUILayout.HelpBox("The \"After Rendering Post Processing\" event does not work with Camera Color targets. " +
                 "Unsure how to actually obtain the target after post processing has been applied. " +
                 "Frame debugger seems to suggest a <no name> target?\n\n" +
                 "Use the \"After Rendering\" event instead!", MessageType.Warning, true);
         }
+		#endif
 
         EditorGUILayout.PropertyField(property.FindPropertyRelative("blitMaterial"));
         EditorGUILayout.PropertyField(property.FindPropertyRelative("blitMaterialPassIndex"));
