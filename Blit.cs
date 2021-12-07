@@ -10,10 +10,10 @@ using UnityEngine.Rendering.Universal;
  * 
  * Extended to allow for :
  * - Specific access to selecting a source and destination (via current camera's color / texture id / render texture object
- * - Automatic switching to using _AfterPostProcessTexture for After Rendering event, in order to correctly handle the blit after post processing is applied
+ * - (Pre-2021.2/v12) Automatic switching to using _AfterPostProcessTexture for After Rendering event, in order to correctly handle the blit after post processing is applied
  * - Setting a _InverseView matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world.
  * 		e.g. Reconstruct world pos from depth : https://www.cyanilux.com/tutorials/depth/#blit-perspective 
- * - (URP v10) Enabling generation of DepthNormals (_CameraNormalsTexture)
+ * - (2020.1/v10 +) Enabling generation of DepthNormals (_CameraNormalsTexture)
  * 		This will only include shaders who have a DepthNormals pass (mostly Lit Shaders / Graphs)
  		(workaround for Unlit Shaders / Graphs: https://gist.github.com/Cyanilux/be5a796cf6ddb20f20a586b94be93f2b)
  * ------------------------------------------------------------------------------------------------------------------------
@@ -47,10 +47,7 @@ public class Blit : ScriptableRendererFeature {
 			}
 		}
 
-		public void Setup(RenderTargetIdentifier source, RenderTargetIdentifier destination) {
-			this.source = source;
-			this.destination = destination;
-
+		public void Setup() {
 #if UNITY_2020_1_OR_NEWER
 			if (settings.requireDepthNormals)
 				ConfigureInput(ScriptableRenderPassInput.Normal);
@@ -59,9 +56,28 @@ public class Blit : ScriptableRendererFeature {
 
 		public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
 			CommandBuffer cmd = CommandBufferPool.Get(m_ProfilerTag);
-
 			RenderTextureDescriptor opaqueDesc = renderingData.cameraData.cameraTargetDescriptor;
 			opaqueDesc.depthBufferBits = 0;
+
+			// Set Source / Destination
+			// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
+			var renderer = renderingData.cameraData.renderer;
+
+			if (settings.srcType == Target.CameraColor){
+				source = renderer.cameraColorTarget;
+			}else if (settings.srcType == Target.TextureID){
+				source = new RenderTargetIdentifier(settings.srcTextureId);
+			}else if (settings.srcType == Target.RenderTextureObject){
+				source = new RenderTargetIdentifier(settings.srcTextureObject);
+			}
+
+			if (settings.dstType == Target.CameraColor){
+				destination = renderer.cameraColorTarget;
+			}else if (settings.dstType == Target.TextureID){
+				destination = new RenderTargetIdentifier(settings.dstTextureId);
+			}else if (settings.dstType == Target.RenderTextureObject){
+				destination = new RenderTargetIdentifier(settings.dstTextureObject);
+			}
 
 			if (settings.setInverseViewMatrix) {
 				Shader.SetGlobalMatrix("_InverseView", renderingData.cameraData.camera.cameraToWorldMatrix);
@@ -126,10 +142,7 @@ public class Blit : ScriptableRendererFeature {
 	}
 
 	public BlitSettings settings = new BlitSettings();
-
 	public BlitPass blitPass;
-
-	private RenderTargetIdentifier srcIdentifier, dstIdentifier;
 
 	public override void Create() {
 		var passIndex = settings.blitMaterial != null ? settings.blitMaterial.passCount - 1 : 1;
@@ -143,29 +156,6 @@ public class Blit : ScriptableRendererFeature {
 		if (settings.graphicsFormat == UnityEngine.Experimental.Rendering.GraphicsFormat.None) {
 			settings.graphicsFormat = SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.LDR);
 		}
-
-		UpdateSrcIdentifier();
-		UpdateDstIdentifier();
-	}
-
-	private void UpdateSrcIdentifier() {
-		srcIdentifier = UpdateIdentifier(settings.srcType, settings.srcTextureId, settings.srcTextureObject);
-	}
-
-	private void UpdateDstIdentifier() {
-		dstIdentifier = UpdateIdentifier(settings.dstType, settings.dstTextureId, settings.dstTextureObject);
-	}
-
-	private RenderTargetIdentifier UpdateIdentifier(Target type, string s, RenderTexture obj) {
-		if (type == Target.RenderTextureObject) {
-			return obj;
-		} else if (type == Target.TextureID) {
-			//RenderTargetHandle m_RTHandle = new RenderTargetHandle();
-			//m_RTHandle.Init(s);
-			//return m_RTHandle.Identifier();
-			return s;
-		}
-		return new RenderTargetIdentifier();
 	}
 
 	public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
@@ -175,37 +165,34 @@ public class Blit : ScriptableRendererFeature {
 			return;
 		}
 
+		#if !UNITY_2021_2_OR_NEWER
+		// AfterRenderingPostProcessing event is fixed in 2021.2+ so this workaround is no longer required
+
 		if (settings.Event == RenderPassEvent.AfterRenderingPostProcessing) {
 		} else if (settings.Event == RenderPassEvent.AfterRendering && renderingData.postProcessingEnabled) {
 			// If event is AfterRendering, and src/dst is using CameraColor, switch to _AfterPostProcessTexture instead.
 			if (settings.srcType == Target.CameraColor) {
 				settings.srcType = Target.TextureID;
 				settings.srcTextureId = "_AfterPostProcessTexture";
-				UpdateSrcIdentifier();
 			}
 			if (settings.dstType == Target.CameraColor) {
 				settings.dstType = Target.TextureID;
 				settings.dstTextureId = "_AfterPostProcessTexture";
-				UpdateDstIdentifier();
 			}
 		} else {
 			// If src/dst is using _AfterPostProcessTexture, switch back to CameraColor
 			if (settings.srcType == Target.TextureID && settings.srcTextureId == "_AfterPostProcessTexture") {
 				settings.srcType = Target.CameraColor;
 				settings.srcTextureId = "";
-				UpdateSrcIdentifier();
 			}
 			if (settings.dstType == Target.TextureID && settings.dstTextureId == "_AfterPostProcessTexture") {
 				settings.dstType = Target.CameraColor;
 				settings.dstTextureId = "";
-				UpdateDstIdentifier();
 			}
 		}
-
-		var src = (settings.srcType == Target.CameraColor) ? renderer.cameraColorTarget : srcIdentifier;
-		var dest = (settings.dstType == Target.CameraColor) ? renderer.cameraColorTarget : dstIdentifier;
-
-		blitPass.Setup(src, dest);
+		#endif
+		
+		blitPass.Setup();
 		renderer.EnqueuePass(blitPass);
 	}
 }
