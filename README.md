@@ -1,8 +1,9 @@
 ## Blit Renderer Feature
 Tested with **2021.2.5f1 / URP v12.1.2**. Should still work with older versions, otherwise see branches for 2019-2021.1 version.
 <br /><br />
-**Note : You must put the `BlitDirectly.shader` in the 'Always Included Shaders' section under Project Settings → Graphics for this to work in builds!**<br />
-Shader should use global texture `_MainTex` to recieve source. If you use Shader Graph, make sure to change **Reference** (not just name) and **untick Exposed**!
+**Note : You must put the `BlitDirectly.shader` in the 'Always Included Shaders' section under Project Settings → Graphics for this to work in builds!**
+<br /><br />
+For blit materials, the shader should use a global texture `_MainTex` to recieve source. If you use Shader Graph, make sure to change **Reference** (not just name) and **untick Exposed**! For shader code, see BlitDirectly.shader as an example. If outputting directly in clip space, you can untick the "Override View Projection" on the feature.
 <br /><br />
 Extended to allow options for :<br />
 • Specific access to selecting a **source** and **destination** (via current camera's color / texture id / render texture object)<br />
