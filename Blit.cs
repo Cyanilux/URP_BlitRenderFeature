@@ -115,13 +115,13 @@ namespace Cyan {
 				*/
 
 				// Handle DrawFullScreenMesh
-				OverrideCameraViewProjection(cmd, renderingData.cameraData);
+				if (settings.overrideViewProjection) OverrideCameraViewProjection(cmd, renderingData.cameraData);
 				if (source == destination) {
 					// If same source/destination, we cannot read & write to the same target so use a TemporaryRT
 					cmd.GetTemporaryRT(m_TemporaryColorTexture.id, opaqueDesc, settings.filterMode);
 
 					DrawFullscreenMesh(cmd, source, m_TemporaryColorTexture.Identifier(), settings.blitMaterial, settings.blitMaterialPassIndex);	
-					RestoreCameraViewProjection(cmd, renderingData.cameraData);
+					if (settings.overrideViewProjection) RestoreCameraViewProjection(cmd, renderingData.cameraData);
 
 					if (blitDirectlyMaterial == null) {
 						Shader blitDirectlyShader = Shader.Find("Hidden/Cyan/BlitDirectly");
@@ -140,7 +140,7 @@ namespace Cyan {
 				} else {
 					// Different targets, can draw single quad
 					DrawFullscreenMesh(cmd, source, destination, settings.blitMaterial, settings.blitMaterialPassIndex);
-					RestoreCameraViewProjection(cmd, renderingData.cameraData);
+					if (settings.overrideViewProjection) RestoreCameraViewProjection(cmd, renderingData.cameraData);
 				}
 				
 				context.ExecuteCommandBuffer(cmd);
