@@ -1,0 +1,10 @@
+{
+  "name": "com.cyanilux.blitrenderfuture",
+  "version": "1.0.0",
+  "displayName": "Blit Render Feature",
+  "description": "Simple blit render feature",
+  "unity": "2021.2",
+  "unityRelease": "8f1",
+  "type": "tool",
+  "hideInEditor": false
+}

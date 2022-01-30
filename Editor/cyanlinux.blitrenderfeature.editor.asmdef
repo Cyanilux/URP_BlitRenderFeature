@@ -1,0 +1,16 @@
+{
+    "name": "cyanlinux.blitrenderfeature.editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:7af347754aa6c134c8206270eb6bfd26"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
