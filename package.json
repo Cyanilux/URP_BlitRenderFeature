@@ -1,0 +1,13 @@
+{
+	"name": "com.cyanilux.urp-blitrenderfeature",
+	"version": "1.0.0",
+	"displayName": "URP Blit Render Feature",
+	"description": "Adds Blit option to Render Features list on Forward/Universal Renderer asset",
+   "keywords": [
+	  "URP"
+	],
+	"author": {
+	  "name": "Cyanilux",
+	  "url": "https://twitter.com/Cyanilux"
+	}
+  }
