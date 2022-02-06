@@ -3,7 +3,7 @@
 - Based on the Blit (now renamed to FullscreenFeature/Pass) from the [UniversalRenderingExamples](https://github.com/Unity-Technologies/UniversalRenderingExamples/tree/master/Assets/Scripts/Runtime/RenderPasses)
 
 ### Setup:
-- Install via Package Manager → Add package via git URL : `https://github.com/Cyanilux/ShaderGraphVariables.git`
+- Install via Package Manager → Add package via git URL : `https://github.com/Cyanilux/URP_BlitRenderFeature.git`
 - Alternatively, download and put the folder in your Assets
 
 ### Features :
