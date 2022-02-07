@@ -38,6 +38,10 @@ namespace Cyan {
 			RenderTargetHandle m_DestinationTexture;
 			string m_ProfilerTag;
 
+#if !UNITY_2020_2_OR_NEWER // v8
+			private ScriptableRenderer renderer;
+#endif
+
 			public BlitPass(RenderPassEvent renderPassEvent, BlitSettings settings, string tag) {
 				this.renderPassEvent = renderPassEvent;
 				this.settings = settings;
@@ -49,10 +53,12 @@ namespace Cyan {
 				}
 			}
 
-			public void Setup() {
+			public void Setup(ScriptableRenderer renderer) {
 #if UNITY_2020_2_OR_NEWER // v10+
 				if (settings.requireDepthNormals)
 					ConfigureInput(ScriptableRenderPassInput.Normal);
+#else // v8
+				this.renderer = renderer;
 #endif
 			}
 
@@ -62,9 +68,14 @@ namespace Cyan {
 				opaqueDesc.depthBufferBits = 0;
 
 				// Set Source / Destination
-				// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
+#if UNITY_2020_2_OR_NEWER // v10+
 				var renderer = renderingData.cameraData.renderer;
+#else // v8
+				// For older versions, cameraData.renderer is internal so can't be accessed. Will pass it through from AddRenderPasses instead
+				var renderer = this.renderer;
+#endif
 
+				// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
 				if (settings.srcType == Target.CameraColor) {
 					source = renderer.cameraColorTarget;
 				} else if (settings.srcType == Target.TextureID) {
@@ -196,7 +207,7 @@ namespace Cyan {
 		}
 #endif
 
-			blitPass.Setup();
+			blitPass.Setup(renderer);
 			renderer.EnqueuePass(blitPass);
 		}
 	}
