@@ -51,7 +51,7 @@ public class Blit : ScriptableRendererFeature {
 			this.source = source;
 			this.destination = destination;
 
-#if UNITY_2020_1_OR_NEWER
+#if UNITY_2020_2_OR_NEWER // v10+
 			if (settings.requireDepthNormals)
 				ConfigureInput(ScriptableRenderPassInput.Normal);
 #endif
