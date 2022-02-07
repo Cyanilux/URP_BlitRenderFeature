@@ -13,7 +13,7 @@ using UnityEngine.Rendering.Universal;
  * - (Pre-2021.2/v12) Automatic switching to using _AfterPostProcessTexture for After Rendering event, in order to correctly handle the blit after post processing is applied
  * - Setting a _InverseView matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world.
  * 		e.g. Reconstruct world pos from depth : https://www.cyanilux.com/tutorials/depth/#blit-perspective 
- * - (2020.1/v10 +) Enabling generation of DepthNormals (_CameraNormalsTexture)
+ * - (2020.2/v10 +) Enabling generation of DepthNormals (_CameraNormalsTexture)
  * 		This will only include shaders who have a DepthNormals pass (mostly Lit Shaders / Graphs)
  		(workaround for Unlit Shaders / Graphs: https://gist.github.com/Cyanilux/be5a796cf6ddb20f20a586b94be93f2b)
  * ------------------------------------------------------------------------------------------------------------------------
@@ -50,7 +50,7 @@ namespace Cyan {
 			}
 
 			public void Setup() {
-#if UNITY_2020_1_OR_NEWER
+#if UNITY_2020_2_OR_NEWER // v10+
 				if (settings.requireDepthNormals)
 					ConfigureInput(ScriptableRenderPassInput.Normal);
 #endif
