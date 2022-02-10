@@ -21,7 +21,12 @@ using UnityEngine.Rendering.Universal;
 */
 
 namespace Cyan {
-	[CreateAssetMenu(menuName = "Feature/Blit")]
+/*
+CreateAssetMenu here allows creating the ScriptableObject without being attached to a Renderer Asset
+Can then Enqueue the pass manually via https://gist.github.com/Cyanilux/8fb3353529887e4184159841b8cad208
+as a workaround for 2D Renderer not supporting features (prior to 2021.2). Uncomment if needed.
+*/
+//	[CreateAssetMenu(menuName = "Cyan/Blit")] 
 	public class Blit : ScriptableRendererFeature {
 
 		public class BlitPass : ScriptableRenderPass {
