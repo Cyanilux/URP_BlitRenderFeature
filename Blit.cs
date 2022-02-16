@@ -40,6 +40,8 @@ namespace Cyan {
 			private RenderTargetIdentifier source { get; set; }
 			private RenderTargetIdentifier destination { get; set; }
 
+			private RenderTargetIdentifier cameraDepthTarget;
+
 			private RenderTargetHandle m_TemporaryColorTexture;
 			private RenderTargetHandle m_DestinationTexture;
 			private string m_ProfilerTag;
@@ -72,6 +74,7 @@ namespace Cyan {
 				// Set Source / Destination
 				// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
 				var renderer = renderingData.cameraData.renderer;
+				cameraDepthTarget = renderer.cameraDepthTarget;
 
 				if (settings.srcType == Target.CameraColor) {
 					source = renderer.cameraColorTarget;
@@ -153,8 +156,12 @@ namespace Cyan {
 				cmd.SetGlobalTexture(blitTextureID, source);
 
 				// Set Render Target to Destination
-				cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1));
-
+				if (settings.dstType == Target.CameraColor){
+					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1), cameraDepthTarget);
+				}else{
+					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1));
+				}
+				
 				// Draw Fullscreen Quad
 				cmd.DrawMesh(RenderingUtils.fullscreenMesh, Matrix4x4.identity, blitMaterial, 0, materialIndex);
 			}

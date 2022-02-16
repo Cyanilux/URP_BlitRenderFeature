@@ -5,7 +5,7 @@ Shader "Hidden/Cyan/BlitDirectly" {
 		LOD 100
 		Cull Off
 		ZWrite Off
-		ZTest Always
+		ZTest NotEqual // ZTest Always
 		Pass {
 			Name "BlitPass"
 
@@ -38,7 +38,9 @@ Shader "Hidden/Cyan/BlitDirectly" {
 				- (Though it can also optionally override the view/projection matrices so other 
 				shaders/materials that don't do this (e.g. shader graphs) can still be used)
 				*/
-				output.positionCS = float4(input.positionOS.xyz, 1.0);
+				// output.positionCS = float4(input.positionOS.xyz, 1.0);
+				output.positionCS = float4(input.positionOS.xy, UNITY_NEAR_CLIP_VALUE, 1.0);
+				// Note : Have switched to using UNITY_NEAR_CLIP_VALUE and ZTest NotEqual to stop blit occurring on occlusion mesh for VR
 				#if UNITY_UV_STARTS_AT_TOP
 					output.positionCS.y *= -1;
 				#endif
