@@ -70,7 +70,7 @@ namespace Cyan {
 				CommandBuffer cmd = CommandBufferPool.Get(m_ProfilerTag);
 				RenderTextureDescriptor opaqueDesc = renderingData.cameraData.cameraTargetDescriptor;
 				opaqueDesc.depthBufferBits = 0;
-
+				
 				// Set Source / Destination
 				// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
 				var renderer = renderingData.cameraData.renderer;
@@ -94,7 +94,17 @@ namespace Cyan {
 
 				// Set Inverse Matrix
 				if (settings.setInverseViewMatrix) {
-					Shader.SetGlobalMatrix("_InverseView", renderingData.cameraData.camera.cameraToWorldMatrix);
+					if (renderingData.cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+						// VR Single Pass Instanced (& Multiview ?)
+						Camera camera = renderingData.cameraData.camera;
+						Matrix4x4 left = camera.GetStereoViewMatrix(Camera.StereoscopicEye.Left).inverse;
+						Matrix4x4 right = camera.GetStereoViewMatrix(Camera.StereoscopicEye.Right).inverse;
+						cmd.SetGlobalMatrixArray("_InverseViewStereo", new Matrix4x4[]{left, right});
+						// Can then use _InverseView[unity_StereoEyeIndex] in the shader
+					}else{
+						// Non-VR & VR Multi Pass
+						cmd.SetGlobalMatrix("_InverseView", renderingData.cameraData.GetViewMatrix().inverse);
+					}
 				}
 
 				// Setup Destination TempRT
@@ -158,6 +168,7 @@ namespace Cyan {
 				// Set Render Target to Destination
 				if (settings.dstType == Target.CameraColor){
 					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1), cameraDepthTarget);
+						//new RenderTargetIdentifier(cameraDepthTarget, 0, CubemapFace.Unknown, -1));
 				}else{
 					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1));
 				}
@@ -165,6 +176,13 @@ namespace Cyan {
 				// Draw Fullscreen Quad
 				cmd.DrawMesh(RenderingUtils.fullscreenMesh, Matrix4x4.identity, blitMaterial, 0, materialIndex);
 			}
+
+			private readonly int unity_StereoMatrixV = Shader.PropertyToID("unity_StereoMatrixV");
+			private readonly int unity_StereoMatrixVP = Shader.PropertyToID("unity_StereoMatrixVP");
+
+			private Matrix4x4[] stereoViewProjectionMatrix = new Matrix4x4[2];
+			private Matrix4x4[] stereoViewMatrix = new Matrix4x4[2];
+			private Matrix4x4[] stereoCameraProjectionMatrix = new Matrix4x4[2];
 
 			public void OverrideCameraViewProjection(CommandBuffer cmd, CameraData cameraData) {
 				// Clear View/Projection
@@ -174,11 +192,33 @@ namespace Cyan {
 				- But I'd also like to be able to still use Shader Graphs with this feature and there's no easy way to output into clip space for those :\
 				*/
 				Matrix4x4 projectionMatrix = GL.GetGPUProjectionMatrix(Matrix4x4.identity, cameraData.IsCameraProjectionMatrixFlipped());
-				RenderingUtils.SetViewAndProjectionMatrices(cmd, Matrix4x4.identity, projectionMatrix, false);
+				RenderingUtils.SetViewAndProjectionMatrices(cmd, Matrix4x4.identity, projectionMatrix, true);
+
+				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+					for (int i = 0; i < 2; i++) {
+						stereoCameraProjectionMatrix[i] = Matrix4x4.identity;
+						stereoViewMatrix[i] = Matrix4x4.identity;
+						stereoViewProjectionMatrix[i] = GL.GetGPUProjectionMatrix(stereoCameraProjectionMatrix[i], true) * stereoViewMatrix[i];
+					}
+					cmd.SetGlobalMatrixArray(unity_StereoMatrixV, stereoViewMatrix);
+					cmd.SetGlobalMatrixArray(unity_StereoMatrixVP, stereoViewProjectionMatrix);
+					// Note some matrices aren't being overriden here. This is mostly just to get the quad to render correctly to the full viewport.
+				}
 			}
 
 			public void RestoreCameraViewProjection(CommandBuffer cmd, CameraData cameraData) {
-				RenderingUtils.SetViewAndProjectionMatrices(cmd, cameraData.GetViewMatrix(), cameraData.GetGPUProjectionMatrix(), false);
+				// If OverrideCameraViewProjection was used, this returns the matrices to normal
+				RenderingUtils.SetViewAndProjectionMatrices(cmd, cameraData.GetViewMatrix(), cameraData.GetGPUProjectionMatrix(), true);
+
+				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+					for (int i = 0; i < 2; i++) {
+						stereoCameraProjectionMatrix[i] = cameraData.GetProjectionMatrix(i);
+						stereoViewMatrix[i] = cameraData.GetViewMatrix(i);
+						stereoViewProjectionMatrix[i] = GL.GetGPUProjectionMatrix(stereoCameraProjectionMatrix[i], true) * stereoViewMatrix[i];
+					}
+					cmd.SetGlobalMatrixArray(unity_StereoMatrixV, stereoViewMatrix);
+					cmd.SetGlobalMatrixArray(unity_StereoMatrixVP, stereoViewProjectionMatrix);
+				}
 			}
 
 			public override void FrameCleanup(CommandBuffer cmd) {
