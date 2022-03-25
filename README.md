@@ -5,7 +5,7 @@
 
 ### Setup:
 - Install via Package Manager → Add package via git URL : 
-  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git#cmd-drawMesh` (sorry, package is not set up yet!)
+  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git#cmd-drawMesh`
 - Alternatively, download and put the folder in your Assets
 - **Note : You must put the `BlitDirectly.shader` in the 'Always Included Shaders' section under Project Settings → Graphics for this to work in builds!**
 
