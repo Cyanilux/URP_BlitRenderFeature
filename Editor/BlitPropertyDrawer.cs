@@ -3,6 +3,16 @@ using UnityEditor;
 
 namespace Cyan {
 
+	[CustomPropertyDrawer(typeof(Blit.BlitShaderResources))]
+	public class HideShaderResources : PropertyDrawer {
+
+		public override float GetPropertyHeight(SerializedProperty property, GUIContent label) {
+			return 0;
+		}
+
+		public override void OnGUI(Rect position, SerializedProperty property, GUIContent label) {}
+	}
+
 	[CustomPropertyDrawer(typeof(Blit.BlitSettings))]
 	public class BlitEditor : PropertyDrawer {
 		

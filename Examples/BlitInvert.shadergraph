@@ -37,7 +37,11 @@
         }
     ],
     "m_GroupDatas": [],
-    "m_StickyNoteDatas": [],
+    "m_StickyNoteDatas": [
+        {
+            "m_Id": "8b27d2af64ef4fbfa12ba197bd1b97cc"
+        }
+    ],
     "m_Edges": [
         {
             "m_OutputSlot": {
@@ -395,6 +399,26 @@
         "m_SerializableColors": []
     },
     "m_SerializedDescriptor": "SurfaceDescription.Alpha"
+}
+
+{
+    "m_SGVersion": 0,
+    "m_Type": "UnityEditor.ShaderGraph.StickyNoteData",
+    "m_ObjectId": "8b27d2af64ef4fbfa12ba197bd1b97cc",
+    "m_Title": "Note",
+    "m_Content": "Blit feature will need Override View Projection enabled (all shader graphs will need this). See readme for more info.\n\n- Cyanilux",
+    "m_TextSize": 1,
+    "m_Theme": 0,
+    "m_Position": {
+        "serializedVersion": "2",
+        "x": 546.0,
+        "y": 530.0,
+        "width": 561.0,
+        "height": 243.54571533203126
+    },
+    "m_Group": {
+        "m_Id": ""
+    }
 }
 
 {

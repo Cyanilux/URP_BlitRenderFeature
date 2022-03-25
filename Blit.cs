@@ -36,7 +36,7 @@ namespace Cyan {
 		public class BlitPass : ScriptableRenderPass {
 
 			BlitSettings settings;
-			
+
 			private RenderTargetIdentifier source { get; set; }
 			private RenderTargetIdentifier destination { get; set; }
 
@@ -49,7 +49,7 @@ namespace Cyan {
 			private Material blitDirectlyMaterial;
 			private bool hasPrintedError;
 
-			public BlitPass(RenderPassEvent renderPassEvent, BlitSettings settings, string tag) {
+			public BlitPass(RenderPassEvent renderPassEvent, BlitSettings settings, BlitShaderResources shaders, string tag) {
 				this.renderPassEvent = renderPassEvent;
 				this.settings = settings;
 				m_ProfilerTag = tag;
@@ -57,20 +57,25 @@ namespace Cyan {
 				if (settings.dstType == Target.TextureID) {
 					m_DestinationTexture.Init(settings.dstTextureId);
 				}
+				if (shaders.blitDirectly == null) {
+					Debug.LogError("shaders.blitDirectly is null?");
+				} else {
+					blitDirectlyMaterial = new Material(shaders.blitDirectly);
+				}
 			}
 
 			public void Setup() {
-	#if UNITY_2020_1_OR_NEWER
+#if UNITY_2020_1_OR_NEWER
 				if (settings.requireDepthNormals)
 					ConfigureInput(ScriptableRenderPassInput.Normal);
-	#endif
+#endif
 			}
 
 			public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
 				CommandBuffer cmd = CommandBufferPool.Get(m_ProfilerTag);
 				RenderTextureDescriptor opaqueDesc = renderingData.cameraData.cameraTargetDescriptor;
 				opaqueDesc.depthBufferBits = 0;
-				
+
 				// Set Source / Destination
 				// note : Seems this has to be done in here rather than in AddRenderPasses to work correctly in 2021.2+
 				var renderer = renderingData.cameraData.renderer;
@@ -94,14 +99,14 @@ namespace Cyan {
 
 				// Set Inverse Matrix
 				if (settings.setInverseViewMatrix) {
-					if (renderingData.cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+					if (renderingData.cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass) {
 						// VR Single Pass Instanced (& Multiview ?)
 						Camera camera = renderingData.cameraData.camera;
 						Matrix4x4 left = camera.GetStereoViewMatrix(Camera.StereoscopicEye.Left).inverse;
 						Matrix4x4 right = camera.GetStereoViewMatrix(Camera.StereoscopicEye.Right).inverse;
-						cmd.SetGlobalMatrixArray("_InverseViewStereo", new Matrix4x4[]{left, right});
+						cmd.SetGlobalMatrixArray("_InverseViewStereo", new Matrix4x4[] { left, right });
 						// Can then use _InverseView[unity_StereoEyeIndex] in the shader
-					}else{
+					} else {
 						// Non-VR & VR Multi Pass
 						cmd.SetGlobalMatrix("_InverseView", renderingData.cameraData.GetViewMatrix().inverse);
 					}
@@ -133,9 +138,9 @@ namespace Cyan {
 					// If same source/destination, we cannot read & write to the same target so use a TemporaryRT
 					cmd.GetTemporaryRT(m_TemporaryColorTexture.id, opaqueDesc, settings.filterMode);
 
-					DrawFullscreenMesh(cmd, source, m_TemporaryColorTexture.Identifier(), settings.blitMaterial, settings.blitMaterialPassIndex);	
+					DrawFullscreenMesh(cmd, source, m_TemporaryColorTexture.Identifier(), settings.blitMaterial, settings.blitMaterialPassIndex);
 					if (settings.overrideViewProjection) RestoreCameraViewProjection(cmd, renderingData.cameraData);
-
+					/*
 					if (blitDirectlyMaterial == null) {
 						Shader blitDirectlyShader = Shader.Find("Hidden/Cyan/BlitDirectly");
 						if (blitDirectlyShader == null){
@@ -147,6 +152,7 @@ namespace Cyan {
 							blitDirectlyMaterial = new Material(blitDirectlyShader);
 						}
 					}
+					*/
 					if (blitDirectlyMaterial != null) {
 						DrawFullscreenMesh(cmd, m_TemporaryColorTexture.Identifier(), destination, blitDirectlyMaterial, 0);
 					}
@@ -155,7 +161,7 @@ namespace Cyan {
 					DrawFullscreenMesh(cmd, source, destination, settings.blitMaterial, settings.blitMaterialPassIndex);
 					if (settings.overrideViewProjection) RestoreCameraViewProjection(cmd, renderingData.cameraData);
 				}
-				
+
 				context.ExecuteCommandBuffer(cmd);
 				cmd.Clear();
 				CommandBufferPool.Release(cmd);
@@ -166,13 +172,13 @@ namespace Cyan {
 				cmd.SetGlobalTexture(blitTextureID, source);
 
 				// Set Render Target to Destination
-				if (settings.dstType == Target.CameraColor){
+				if (settings.dstType == Target.CameraColor) {
 					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1), cameraDepthTarget);
-						//new RenderTargetIdentifier(cameraDepthTarget, 0, CubemapFace.Unknown, -1));
-				}else{
+					//new RenderTargetIdentifier(cameraDepthTarget, 0, CubemapFace.Unknown, -1));
+				} else {
 					cmd.SetRenderTarget(new RenderTargetIdentifier(destination, 0, CubemapFace.Unknown, -1));
 				}
-				
+
 				// Draw Fullscreen Quad
 				cmd.DrawMesh(RenderingUtils.fullscreenMesh, Matrix4x4.identity, blitMaterial, 0, materialIndex);
 			}
@@ -194,7 +200,7 @@ namespace Cyan {
 				Matrix4x4 projectionMatrix = GL.GetGPUProjectionMatrix(Matrix4x4.identity, cameraData.IsCameraProjectionMatrixFlipped());
 				RenderingUtils.SetViewAndProjectionMatrices(cmd, Matrix4x4.identity, projectionMatrix, true);
 
-				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass) {
 					for (int i = 0; i < 2; i++) {
 						stereoCameraProjectionMatrix[i] = Matrix4x4.identity;
 						stereoViewMatrix[i] = Matrix4x4.identity;
@@ -210,7 +216,7 @@ namespace Cyan {
 				// If OverrideCameraViewProjection was used, this returns the matrices to normal
 				RenderingUtils.SetViewAndProjectionMatrices(cmd, cameraData.GetViewMatrix(), cameraData.GetGPUProjectionMatrix(), true);
 
-				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass){
+				if (cameraData.xrRendering && XRGraphics.stereoRenderingMode != XRGraphics.StereoRenderingMode.MultiPass) {
 					for (int i = 0; i < 2; i++) {
 						stereoCameraProjectionMatrix[i] = cameraData.GetProjectionMatrix(i);
 						stereoViewMatrix[i] = cameraData.GetViewMatrix(i);
@@ -264,6 +270,12 @@ namespace Cyan {
 			public FilterMode filterMode = FilterMode.Bilinear;
 		}
 
+		[System.Serializable, ReloadGroup]
+		public class BlitShaderResources {
+			[Reload("BlitDirectly.shader")]
+			public Shader blitDirectly;
+		}
+
 		public enum Target {
 			CameraColor,
 			TextureID,
@@ -273,22 +285,30 @@ namespace Cyan {
 		// Feature Setup
 
 		public BlitSettings settings = new BlitSettings();
+		public BlitShaderResources shaders = new BlitShaderResources();
 		public BlitPass blitPass;
 
 		public override void Create() {
+#if UNITY_EDITOR
+			// This triggers the BlitShaderResources ReloadGroup to reload
+			string path = UnityEditor.AssetDatabase.GetAssetPath(UnityEditor.MonoScript.FromScriptableObject(this)).Replace("/Blit.cs", "");
+			//path = "Assets/Git/URP_BlitRenderFeature";
+			ResourceReloader.ReloadAllNullIn(this, path);
+#endif
+
 			var passIndex = settings.blitMaterial != null ? settings.blitMaterial.passCount - 1 : 1;
 			settings.blitMaterialPassIndex = Mathf.Clamp(settings.blitMaterialPassIndex, -1, passIndex);
-			blitPass = new BlitPass(settings.Event, settings, name);
-
-	#if !UNITY_2021_2_OR_NEWER
-			if (settings.Event == RenderPassEvent.AfterRenderingPostProcessing) {
-				Debug.LogWarning("Note that the \"After Rendering Post Processing\"'s Color target doesn't seem to work? (or might work, but doesn't contain the post processing) :( -- Use \"After Rendering\" instead!");
-			}
-	#endif
 
 			if (settings.graphicsFormat == UnityEngine.Experimental.Rendering.GraphicsFormat.None) {
 				settings.graphicsFormat = SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.LDR);
 			}
+			blitPass = new BlitPass(settings.Event, settings, shaders, name);
+
+#if !UNITY_2021_2_OR_NEWER
+			if (settings.Event == RenderPassEvent.AfterRenderingPostProcessing) {
+				Debug.LogWarning("Note that the \"After Rendering Post Processing\"'s Color target doesn't seem to work? (or might work, but doesn't contain the post processing) :( -- Use \"After Rendering\" instead!");
+			}
+#endif
 		}
 
 		public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
@@ -298,7 +318,7 @@ namespace Cyan {
 				return;
 			}
 
-	#if !UNITY_2021_2_OR_NEWER
+#if !UNITY_2021_2_OR_NEWER
 			// AfterRenderingPostProcessing event is fixed in 2021.2+ so this workaround is no longer required
 
 			if (settings.Event == RenderPassEvent.AfterRenderingPostProcessing) {
@@ -323,7 +343,7 @@ namespace Cyan {
 					settings.dstTextureId = "";
 				}
 			}
-	#endif
+#endif
 
 			blitPass.Setup();
 			renderer.EnqueuePass(blitPass);

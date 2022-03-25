@@ -95,6 +95,9 @@
     "m_StickyNoteDatas": [
         {
             "m_Id": "79032032691b43c3bf82549d4401673a"
+        },
+        {
+            "m_Id": "48d154448f784243834b560e7a24fc61"
         }
     ],
     "m_Edges": [
@@ -1030,6 +1033,26 @@
 
 {
     "m_SGVersion": 0,
+    "m_Type": "UnityEditor.ShaderGraph.StickyNoteData",
+    "m_ObjectId": "48d154448f784243834b560e7a24fc61",
+    "m_Title": "Note",
+    "m_Content": "Requires Depth Texture to be enabled on URP Asset\n\nBlit feature should also have Inverse View Matrix enabled. As well as Override View Projection (all shader graphs will need this)\n\n- Cyanilux",
+    "m_TextSize": 1,
+    "m_Theme": 0,
+    "m_Position": {
+        "serializedVersion": "2",
+        "x": -826.0,
+        "y": 303.0,
+        "width": 561.0,
+        "height": 323.513916015625
+    },
+    "m_Group": {
+        "m_Id": ""
+    }
+}
+
+{
+    "m_SGVersion": 0,
     "m_Type": "UnityEditor.ShaderGraph.DynamicValueMaterialSlot",
     "m_ObjectId": "4b4259c871efdd8480b28874116ecfa3",
     "m_Id": 1,
@@ -1742,14 +1765,14 @@
     "m_ObjectId": "79032032691b43c3bf82549d4401673a",
     "m_Title": "Note",
     "m_Content": "Seems this remapping isn't needed now for the cmd.DrawMesh branch of the BlitRenderFeature\n\n",
-    "m_TextSize": 0,
+    "m_TextSize": 1,
     "m_Theme": 0,
     "m_Position": {
         "serializedVersion": "2",
-        "x": -1899.0,
-        "y": 272.0,
-        "width": 290.0,
-        "height": 107.0
+        "x": -2093.0,
+        "y": 296.0,
+        "width": 617.0,
+        "height": 139.0
     },
     "m_Group": {
         "m_Id": ""

@@ -1,0 +1,19 @@
+{
+    "name": "Cyanilux.BlitRenderFeature.Editor",
+    "rootNamespace": "Cyan",
+    "references": [
+        "GUID:7321a420038444f45b8a4444bf216519",
+        "GUID:15fc0a57446b3144c949da3e2b9737a9"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
