@@ -61,7 +61,7 @@
         },
         "preventRotation": false
     },
-    "m_Path": "Sub Graphs",
+    "m_Path": "Sub Graphs/FullscreenBlit",
     "m_GraphPrecision": 1,
     "m_PreviewMode": 1,
     "m_OutputNode": {

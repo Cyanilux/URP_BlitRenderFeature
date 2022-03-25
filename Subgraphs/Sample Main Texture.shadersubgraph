@@ -130,7 +130,7 @@
         },
         "preventRotation": false
     },
-    "m_Path": "Sub Graphs",
+    "m_Path": "Sub Graphs/FullscreenBlit",
     "m_GraphPrecision": 0,
     "m_PreviewMode": 1,
     "m_OutputNode": {
