@@ -5,23 +5,16 @@
 
 ### Setup:
 - Install via Package Manager → Add package via git URL : 
-  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git#cmd-drawMesh`
+  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git#cmd-drawMesh` (sorry, package is not set up yet!)
 - Alternatively, download and put the folder in your Assets
 - **Note : You must put the `BlitDirectly.shader` in the 'Always Included Shaders' section under Project Settings → Graphics for this to work in builds!**
 
 ### Usage :
 - Adds "Blit" option to Renderer Features list on Forward/Universal asset (and 2D Renderer if in 2021.2+)
-- The shader/material used should sample **global texture** `_MainTex` to obtain source. To avoid editing parts of the screen with the VR occlusion mesh can use `ZTest NotEqual` and output `UNITY_NEAR_CLIP_VALUE` as the clipspace z coordinate. See the BlitDirectly.shader for an example.
-  - You can use a Shader Graph for a material though it may not be recommended for Single-Pass Instanced VR as it will be difficult to override the clipspace position and you will likely need to use the `TEXTURE_2D_X` type rather than the regular `TEXTURE_2D`. Can try a custom function :
-```
-TEXTURE2D_X(_MainTex);
-SAMPLER(sampler_MainTex);
-
-void SampleMainTex_float(float2 uv, out float4 Out) {
-	Out = SAMPLE_TEXTURE2D_X(_MainTex, sampler_MainTex, uv);
-}
-```
-  - For graphs and written shaders that do View/Projection transformations to the clipspace output (e.g. using `TransformObjectToHClip`), make sure to enable the **Override View Projection** option on the feature so the quad is drawn to the screen correctly. For other shaders (e.g. see BlitDirectly.shader for example) you can untick this which may make the feature slightly cheaper.
+- The shader/material used should sample **global texture** `_MainTex` to obtain source.
+  - For Shader Graphs, there is a provided `Sample Main Texture` subgraph to handle this automatically (required to support Single Pass Instanced as it needs to use `TEXTURE2D_X` macros). Do not need to create the property in the blackboard as this will cause a redefinition error if using the subgraph.
+  - For Shader Graphs and written shaders that do View/Projection transformations to the clipspace output (e.g. using `TransformObjectToHClip`), make sure to enable the **Override View Projection** option on the feature so the quad is drawn to the screen correctly. For other written shaders which output vertices directly in object space (e.g. see BlitDirectly.shader for example) you can untick this which may make the feature slightly cheaper.
+  - To avoid editing parts of the screen with the VR occlusion mesh can use `ZTest NotEqual` and output `UNITY_NEAR_CLIP_VALUE` as the clipspace z coordinate. See the BlitDirectly.shader for an example.
 - Feature allows specific access to selecting the **source** and **destination** targets (via **Camera**, **TextureID** or **Render Texture** object)
 - Some usage examples :
   - Could be used with Camera for both source/destination to apply an shader/material as an image effect / post process
@@ -29,7 +22,7 @@ void SampleMainTex_float(float2 uv, out float4 Out) {
   - Could be used with Render Texture object source (rendered by a second camera) and Camera destination to apply it to the Main Camera
  
 ### Additional Features :
-- Option to set an `_InverseView` matrix (cameraToWorldMatrix), for shaders that might need it to handle calculations from screen space to world. For example, reconstructing world position from depth, see : https://twitter.com/Cyanilux/status/1269353975058501636
+- Option to set an `_InverseView` matrix (`_InverseViewStereo` while in Single Pass Instanced). Use the provided `Get Inverse View Matrix` subgraph to obtain this. For written shaders see FullscreenHelperFunctions.hlsl. This is mostly for shaders that need to reconstruct world position from the depth texture, see Examples folder.
 - (2020.2/v10+) Enabling generation of DepthNormals `(_CameraNormalsTexture)`
 
 ### Author / Sources :
