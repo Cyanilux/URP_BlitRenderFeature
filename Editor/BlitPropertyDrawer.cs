@@ -49,7 +49,8 @@ namespace Cyan {
 			EditorGUILayout.PropertyField(srcType);
 			int enumValue = srcType.intValue;
 			if (enumValue == (int)Blit.Target.TextureID) {
-				EditorGUILayout.PropertyField(property.FindPropertyRelative("srcTextureId"));
+				//EditorGUILayout.PropertyField(property.FindPropertyRelative("srcTextureId"));
+				EditorGUILayout.HelpBox("Sorry, with this version there's no longer a text field here - instead you'd need to use a shader which samples your required TextureID as a global (un-exposed) texture reference", MessageType.Warning, true);
 			} else if (enumValue == (int)Blit.Target.RenderTextureObject) {
 				EditorGUILayout.PropertyField(property.FindPropertyRelative("srcTextureObject"));
 			}
