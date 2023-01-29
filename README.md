@@ -3,10 +3,12 @@
 - Tested with **2022.1.20f1 / URP v13.1.8**. For older versions see branches on github.
 - Untested with Single-Pass Instanced VR, but uses Blitter API so *should* support it?
 
-### Issues :
-- Requires specific shader (See BlitExample.shader). Can't use Shader Graphs anymore as they don't use the correct vertex shader. (Might change when Fullscreen graph is a thing?)
-- Source : TextureID is difficult to get working, as Blitter API doesn't seem to support RenderTextureIdentifiers in 2022.1 :(
-- Don't think After Post Processing or After Rendering events work correctly.
+### Issues/Info :
+- Requires a specific vertex shader & uses `_BlitTexture` (not `_MainTex`)! See BlitExample.shader for example.
+  - In 2022.1+, cannot use Shader Graphs with this.
+  - In 2022.2+, can use the Fullscreen graph type & `URP Sample Buffer` node to obtain BlitSource texture. Note that 2022.2 also provides it's own "Fullscreen Pass Renderer Feature" which could replace this feature if you only need camera destination.
+- Source : TextureID no longer provides string field to enter ID like in previous versions. But should be able to sample that global texture ID in the shader instead.
+- Don't think After Post Processing or After Rendering events work correctly. Not sure how to fix this.
 
 ### Setup:
 - Install via Package Manager → Add package via git URL : 
@@ -15,7 +17,7 @@
 
 ### Usage :
 - Adds "Blit" option to Renderer Features list on Forward/Universal asset (and 2D Renderer if in 2021.2+)
-- Requires specific shader (See BlitExample.shader)
+- Requires specific shader (See BlitExample.shader). (Can use Fullscreen graph if in 2022.2+)
 - Feature allows specific access to selecting the **source** and **destination** targets (via **Camera**, **TextureID** or **Render Texture** object)
 - Some usage examples :
   - Could be used with Camera for both source/destination to apply an shader/material as an image effect / post process
