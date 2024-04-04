@@ -268,6 +268,8 @@ namespace Cyan {
 			public UnityEngine.Experimental.Rendering.GraphicsFormat graphicsFormat;
 
 			public FilterMode filterMode = FilterMode.Bilinear;
+
+			public bool canShowInSceneView = true;
 		}
 
 		[System.Serializable, ReloadGroup]
@@ -312,6 +314,8 @@ namespace Cyan {
 		}
 
 		public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
+			if (renderingData.cameraData.isPreviewCamera) return;
+		    if (!settings.canShowInSceneView && renderingData.cameraData.isSceneViewCamera) return;
 
 			if (settings.blitMaterial == null) {
 				Debug.LogWarningFormat("Missing Blit Material. {0} blit pass will not execute. Check for missing reference in the assigned renderer.", GetType().Name);
