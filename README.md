@@ -1,6 +1,7 @@
 ## Blit Renderer Feature
 - Used to apply fullscreen image effects to camera (or other source/destination) using a shader/material.
 - Tested with **2022.1.20f1 / URP v13.1.8**. For older versions see branches on github.
+- Note : Unity/URP 2022.2+ now has a **Fullscreen Graph** and built-in **Fullscreen Pass Renderer Feature** which essentially replaces this feature when blitting using camera targets. (But if you want more injection points and different destinations this branch could still be useful)
 - Untested with Single-Pass Instanced VR, but uses Blitter API so *should* support it?
 
 ### Issues/Info :
