@@ -73,6 +73,8 @@ namespace Cyan {
 				EditorGUILayout.EndHorizontal();
 			} else if (enumValue == (int)Blit.Target.RenderTextureObject) {
 				EditorGUILayout.PropertyField(property.FindPropertyRelative("dstTextureObject"));
+			} else {
+				EditorGUILayout.PropertyField(property.FindPropertyRelative("canShowInSceneView"));
 			}
 
 			EditorGUI.indentLevel = 1;
