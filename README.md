@@ -6,7 +6,7 @@
 
 ### Setup:
 - Install via Package Manager → Add package via git URL : 
-  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git`
+  - `https://github.com/Cyanilux/URP_BlitRenderFeature.git#2021.2`
 - Alternatively, download and put the folder in your Assets
 
 ### Usage :
