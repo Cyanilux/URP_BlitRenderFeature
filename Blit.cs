@@ -1,170 +1,217 @@
 ﻿using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.Rendering.RenderGraphModule;
+using UnityEngine.Experimental.Rendering;
+using System;
 
 /*
  * @Cyanilux https://github.com/Cyanilux/URP_BlitRenderFeature
 */
 
 namespace Cyan {
-    public class Blit : ScriptableRendererFeature {
-        public class BlitPass : ScriptableRenderPass {
+    public class BlitRenderFeature : ScriptableRendererFeature {
 
-            private BlitSettings settings;
+        [Serializable]
+        public class FeatureSettings {
 
-            private RTHandle source;
-            private RTHandle destination;
-            private RTHandle temp;
+            public RenderPassEvent injectionPoint = RenderPassEvent.AfterRenderingTransparents;
 
-            //private RTHandle srcTextureId;
-            private RTHandle srcTextureObject;
-            private RTHandle dstTextureId;
-            private RTHandle dstTextureObject;
+            // (Same as ScriptableRenderPassInput, but renamed "Color" to "OpaqueTexture" for clarity)
+            [Flags]
+            public enum Requirements {
+                None                = 0,
+                DepthTexture        = 1 << 0,   // resourcesData.cameraDepthTexture
+                NormalsTexture      = 1 << 1,   // resourcesData.cameraNormalsTexture
+                OpaqueTexture       = 1 << 2,   // resourcesData.cameraOpaqueTexture
+                MotionVectorTexture = 1 << 3,   // resourcesData.motionVectorColor & resourcesData.motionVectorDepth
+            }
 
-            private string m_ProfilerTag;
+            [Header("Inputs")]
+            public Requirements requirements;
+            public string[] globalTextures = new string[]{};
+            /*
+            Declares textures that are used by the pass. I assume this keeps them "alive" if that resource is handled by RenderGraph.
+            Note it's up to a custom material/shader to actually sample that global reference.
+            */
 
-            public BlitPass(RenderPassEvent renderPassEvent, BlitSettings settings, string tag) {
-                this.renderPassEvent = renderPassEvent;
+            public enum Destination {
+                CameraColor,
+                GlobalTexture
+            }
+            /*
+            - Compared to previous versions, RenderTexture objects/assets here has been removed
+                - The original intended usecase was for blitting a RenderTexture drawn by a secondary camera to the screen. Both color and depth buffers are needed for camera "Output Texture" field or it throws a warning :
+                    "In the render graph API, the output Render Texture must have a depth buffer. When you select a Render Texture in any camera's Output Texture property, the Depth Stencil Format property of the texture must be set to a value other than None."
+                - Tried using RTHandles.Alloc(renderTexture) (& release in Dispose) into renderGraph.ImportTexture(). However if it has both color & depth, it errors.
+                    "Exception: Invalid imported texture. Both a color and a depthStencil format are provided. The texture needs to either have a color format or a depth stencil format."
+                - It seems sampling the RenderTexture directly in shader/material still works if needed. (I'd guess "importing" isn't important if the resource isn't handled by RenderGraph anyway? Not sure though.)
+            */
+
+            [Header("Destination")]
+            public Destination dstType = Destination.CameraColor;
+            [ShowIf("dstType", Destination.CameraColor)]
+            public bool showInSceneView = true;
+            [ShowIf("dstType", Destination.GlobalTexture)]
+            [Indent] public string dstGlobalTexture = "_BlitPassTexture";
+            public enum FormatMode { SameAsCamera, CameraFormatWithAlpha, GraphicsFormat }
+            public FormatMode colorFormat;
+            [ShowIf("colorFormat", FormatMode.GraphicsFormat)]
+            [Indent] public GraphicsFormat format;
+            public bool bindDepthStencilBuffer;
+
+            [Header("Material")]
+            public Material blitMaterial;
+            [ShowIf("blitMaterial")]
+            public int blitPassIndex;
+
+        }
+
+        public FeatureSettings settings;
+
+        class RenderPass : ScriptableRenderPass {
+
+            private FeatureSettings settings;
+            private int dstGlobalTextureID;
+            private int[] globalTextures;
+
+            public RenderPass(FeatureSettings settings) {
                 this.settings = settings;
-                m_ProfilerTag = tag;
-                if (settings.srcType == Target.RenderTextureObject && settings.srcTextureObject)
-                    srcTextureObject = RTHandles.Alloc(settings.srcTextureObject);
-                if (settings.dstType == Target.RenderTextureObject && settings.dstTextureObject)
-                    dstTextureObject = RTHandles.Alloc(settings.dstTextureObject);
+                dstGlobalTextureID = Shader.PropertyToID(settings.dstGlobalTexture);
+
+                int len = settings.globalTextures.Length;
+                globalTextures = new int[len];
+                for (int i = 0; i < len; i++) {
+                    globalTextures[i] = Shader.PropertyToID(settings.globalTextures[i]);
+                }
             }
 
-            public void Setup(ScriptableRenderer renderer) {
-                if (settings.requireDepthNormals)
-                    ConfigureInput(ScriptableRenderPassInput.Normal);
+            private class BlitPassData {
+                internal TextureHandle source;
+                internal Material material;
+                internal int passIndex;
             }
 
-            public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData) {
-                var desc = renderingData.cameraData.cameraTargetDescriptor;
-                desc.depthBufferBits = 0; // Color and depth cannot be combined in RTHandles
+            static void ExecuteBlitPass(BlitPassData data, RasterGraphContext context) {
+                if (data.material == null) {
+                    Blitter.BlitTexture(context.cmd, data.source, new Vector4(1, 1, 0, 0), 0, false);
+                } else {
+                    Blitter.BlitTexture(context.cmd, data.source, new Vector4(1, 1, 0, 0), data.material, data.passIndex);
+                }
+            }
 
-                //RenderingUtils.ReAllocateIfNeeded(ref temp, Vector2.one, desc, name: "_TemporaryColorTexture");
-                // These resizable RTHandles seem quite glitchy when switching between game and scene view :\
-                // instead,
-                RenderingUtils.ReAllocateIfNeeded(ref temp, desc, name: "_TemporaryColorTexture");
+            public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData) {
+                UniversalCameraData cameraData = frameData.Get<UniversalCameraData>();
+                UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
 
-                var renderer = renderingData.cameraData.renderer;
-                if (settings.srcType == Target.CameraColor) {
-                    source = renderer.cameraColorTargetHandle;
-                } else if (settings.srcType == Target.TextureID) {
-					//RenderingUtils.ReAllocateIfNeeded(ref srcTextureId, Vector2.one, desc, name: settings.srcTextureId);
-                    //source = srcTextureId;
+                TextureHandle cameraTex = resourceData.cameraColor;
+                if (!cameraTex.IsValid()) return;
+
+                using (var builder = renderGraph.AddRasterRenderPass<BlitPassData>("Blit Pass", out var passData)) {
+                    // Init PassData
+                    passData.material = settings.blitMaterial;
+                    passData.passIndex = settings.blitPassIndex;
+                    passData.source = cameraTex;
+
+                    // Declare Inputs
+                    builder.UseTexture(passData.source);
                     /*
-                    Doesn't seem to be a good way to get an existing target with this new RTHandle system.
-                    The above would work but means I'd need fields to set the desc too, which is just messy. If they don't match completely we get a new target
-                    Previously we could use a RenderTargetIdentifier... but the Blitter class doesn't have support for those in 2022.1 -_-
-                    Instead, I guess we'll have to rely on the shader sampling the global textureID
+                    Assumes cameraColor is in use, even if shader doesn't sample it.
+                    Somewhat a workaround as Blitter API apparently requires a source input or it errors.
+                    Using a DrawProcedural instead could probably avoid this.
                     */
-                    source = temp;
-                } else if (settings.srcType == Target.RenderTextureObject) {
-                    source = srcTextureObject;
+
+                    for (int i = 0; i < globalTextures.Length; i++) {
+                        try
+                        {
+                            builder.UseGlobalTexture(globalTextures[i]);
+                        }
+                        catch(ArgumentException //e
+                        ) {
+                            /*
+                            UseGlobalTexture will cause errors and break rendering if texture does not exist, which is a bit annoying.
+                            Using this to fail silently instead.
+                            
+                            If you prefer, could at least expose as a warning :
+                            */
+                            //Debug.LogWarning("ArgumentException: " + e.Message + " (Global Texture '"+settings.globalTextures[i]+"')\n" + e.StackTrace);
+                        }
+                    }
+
+                    if ((input & ScriptableRenderPassInput.Color) != ScriptableRenderPassInput.None && resourceData.cameraOpaqueTexture.IsValid()) {
+                        builder.UseTexture(resourceData.cameraOpaqueTexture);
+                    }
+                    if ((input & ScriptableRenderPassInput.Depth) != ScriptableRenderPassInput.None) {
+                        Debug.Assert(resourceData.cameraDepthTexture.IsValid());
+                        builder.UseTexture(resourceData.cameraDepthTexture);
+                    }
+                    if ((input & ScriptableRenderPassInput.Motion) != ScriptableRenderPassInput.None) {
+                        Debug.Assert(resourceData.motionVectorColor.IsValid());
+                        builder.UseTexture(resourceData.motionVectorColor);
+                        Debug.Assert(resourceData.motionVectorDepth.IsValid());
+                        builder.UseTexture(resourceData.motionVectorDepth);
+                    }
+                    if ((input & ScriptableRenderPassInput.Normal) != ScriptableRenderPassInput.None) {
+                        Debug.Assert(resourceData.cameraNormalsTexture.IsValid());
+                        builder.UseTexture(resourceData.cameraNormalsTexture);
+                    }
+
+                    // Create Offscreen/Intermediate Texture
+                    var desc = renderGraph.GetTextureDesc(resourceData.cameraColor);
+                    desc.depthBufferBits = 0;
+                    if (settings.colorFormat == FeatureSettings.FormatMode.CameraFormatWithAlpha) {
+                        desc.format = GraphicsFormatUtility.ConvertToAlphaFormat(desc.format);
+                    } else if (settings.colorFormat == FeatureSettings.FormatMode.GraphicsFormat) {
+                        GraphicsFormat compatibleFormat = SystemInfo.GetCompatibleFormat(settings.format, GraphicsFormatUsage.Render);
+                        if (compatibleFormat != GraphicsFormat.None)
+                            desc.format = compatibleFormat;
+                    }
+                    desc.name = settings.dstType == FeatureSettings.Destination.GlobalTexture ? settings.dstGlobalTexture : "_CameraColorFullScreenPass";
+                    desc.clearBuffer = false;
+                    TextureHandle customTex = renderGraph.CreateTexture(desc);
+                    if (!customTex.IsValid()) return;
+
+                    // Set Render Target
+                    builder.SetRenderAttachment(customTex, 0);
+                    if (settings.bindDepthStencilBuffer) {
+                        builder.SetRenderAttachmentDepth(resourceData.activeDepthTexture);
+                    }
+
+                    // Output Global Texture
+                    if (settings.dstType == FeatureSettings.Destination.GlobalTexture) {
+                        builder.SetGlobalTextureAfterPass(customTex, dstGlobalTextureID);
+                    }
+
+                    // Assign ExecutePass
+                    builder.AllowPassCulling(false);
+                    builder.SetRenderFunc((BlitPassData data, RasterGraphContext context) => ExecuteBlitPass(data, context));
+
+                    if (settings.dstType == FeatureSettings.Destination.CameraColor) {
+                        // Swap Camera Texture
+                        resourceData.cameraColor = customTex;
+                    }
                 }
-
-                if (settings.dstType == Target.CameraColor) {
-                    destination = renderer.cameraColorTargetHandle;
-                } else if (settings.dstType == Target.TextureID) {
-                    desc.graphicsFormat = settings.graphicsFormat;
-                    RenderingUtils.ReAllocateIfNeeded(ref dstTextureId, Vector2.one, desc, name: settings.dstTextureId);
-                    destination = dstTextureId;
-                } else if (settings.dstType == Target.RenderTextureObject) {
-                    destination = dstTextureObject;
-                }
-            }
-
-            public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData) {
-                if (renderingData.cameraData.cameraType == CameraType.Preview) return;
-
-                CommandBuffer cmd = CommandBufferPool.Get(m_ProfilerTag);
-                if (settings.setInverseViewMatrix) {
-                    cmd.SetGlobalMatrix("_InverseView", renderingData.cameraData.camera.cameraToWorldMatrix);
-                }
-                
-                //Debug.Log("blit : src = " + source.name + ", dst = " + destination.name);
-                if (source == destination){
-                    Blitter.BlitCameraTexture(cmd, source, temp, settings.blitMaterial, settings.blitMaterialPassIndex);
-                    Blitter.BlitCameraTexture(cmd, temp, destination, Vector2.one);
-                }else{
-                    Blitter.BlitCameraTexture(cmd, source, destination, settings.blitMaterial, settings.blitMaterialPassIndex);
-                }
-                
-                context.ExecuteCommandBuffer(cmd);
-                CommandBufferPool.Release(cmd);
-            }
-
-            public override void OnCameraCleanup(CommandBuffer cmd) {
-                source = null;
-                destination = null;
-            }
-
-            public void Dispose() {
-                temp?.Release();
-				dstTextureId?.Release();
             }
         }
 
-        [System.Serializable]
-        public class BlitSettings {
-            public RenderPassEvent Event = RenderPassEvent.AfterRenderingOpaques;
-
-            public Material blitMaterial = null;
-            public int blitMaterialPassIndex = 0;
-            public bool setInverseViewMatrix = false;
-            public bool requireDepthNormals = false;
-
-            public Target srcType = Target.CameraColor;
-            //public string srcTextureId = "_CameraColorTexture";
-            public RenderTexture srcTextureObject;
-
-            public Target dstType = Target.CameraColor;
-            public string dstTextureId = "_BlitPassTexture";
-            public RenderTexture dstTextureObject;
-
-            public bool overrideGraphicsFormat = false;
-            public UnityEngine.Experimental.Rendering.GraphicsFormat graphicsFormat;
-
-            public bool canShowInSceneView = true;
-        }
-
-        public enum Target {
-            CameraColor,
-            TextureID,
-            RenderTextureObject
-        }
-
-        public BlitSettings settings = new BlitSettings();
-        public BlitPass blitPass;
+        private RenderPass m_ScriptablePass;
 
         public override void Create() {
-            var passIndex = settings.blitMaterial != null ? settings.blitMaterial.passCount - 1 : 1;
-            settings.blitMaterialPassIndex = Mathf.Clamp(settings.blitMaterialPassIndex, -1, passIndex);
-            blitPass = new BlitPass(settings.Event, settings, name);
-
-            if (settings.graphicsFormat == UnityEngine.Experimental.Rendering.GraphicsFormat.None) {
-                settings.graphicsFormat = SystemInfo.GetGraphicsFormat(UnityEngine.Experimental.Rendering.DefaultFormat.LDR);
+            settings ??= new();
+            if (settings.blitMaterial != null) {
+                settings.blitPassIndex = Math.Clamp(settings.blitPassIndex, -1, settings.blitMaterial.passCount - 1);
             }
+            m_ScriptablePass = new RenderPass(settings) {
+                renderPassEvent = settings.injectionPoint
+            };
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData) {
             if (renderingData.cameraData.isPreviewCamera) return;
-		    if (!settings.canShowInSceneView && renderingData.cameraData.isSceneViewCamera) return;
+            if (settings.dstType == FeatureSettings.Destination.CameraColor && !settings.showInSceneView && renderingData.cameraData.isSceneViewCamera) return;
 
-            if (settings.blitMaterial == null) {
-                Debug.LogWarningFormat("Missing Blit Material. {0} blit pass will not execute. Check for missing reference in the assigned renderer.", GetType().Name);
-                return;
-            }
-            renderer.EnqueuePass(blitPass);
-        }
-
-        public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData) {
-            blitPass.Setup(renderer);
-        }
-
-        protected override void Dispose(bool disposing) {
-            blitPass.Dispose();
+            m_ScriptablePass.ConfigureInput((ScriptableRenderPassInput)settings.requirements);
+            renderer.EnqueuePass(m_ScriptablePass);
         }
     }
 }
