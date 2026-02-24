@@ -10,7 +10,7 @@ using System;
 */
 
 namespace Cyan {
-    public class BlitRenderFeature : ScriptableRendererFeature {
+    public class Blit : ScriptableRendererFeature {
 
         [Serializable]
         public class FeatureSettings {
@@ -69,13 +69,13 @@ namespace Cyan {
 
         public FeatureSettings settings;
 
-        class RenderPass : ScriptableRenderPass {
+        class BlitPass : ScriptableRenderPass {
 
             private FeatureSettings settings;
             private int dstGlobalTextureID;
             private int[] globalTextures;
 
-            public RenderPass(FeatureSettings settings) {
+            public BlitPass(FeatureSettings settings) {
                 this.settings = settings;
                 dstGlobalTextureID = Shader.PropertyToID(settings.dstGlobalTexture);
 
@@ -194,14 +194,14 @@ namespace Cyan {
             }
         }
 
-        private RenderPass m_ScriptablePass;
+        private BlitPass m_ScriptablePass;
 
         public override void Create() {
             settings ??= new();
             if (settings.blitMaterial != null) {
                 settings.blitPassIndex = Math.Clamp(settings.blitPassIndex, -1, settings.blitMaterial.passCount - 1);
             }
-            m_ScriptablePass = new RenderPass(settings) {
+            m_ScriptablePass = new BlitPass(settings) {
                 renderPassEvent = settings.injectionPoint
             };
         }
