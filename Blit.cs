@@ -84,6 +84,8 @@ namespace Cyan {
                 for (int i = 0; i < len; i++) {
                     globalTextures[i] = Shader.PropertyToID(settings.globalTextures[i]);
                 }
+
+                requiresIntermediateTexture = true; // Ensures resourceData.cameraColor is created, as using the back buffer as an input isn't supported.
             }
 
             private class BlitPassData {
@@ -156,7 +158,7 @@ namespace Cyan {
                         builder.UseTexture(resourceData.cameraNormalsTexture);
                     }
 
-                    // Create Offscreen/Intermediate Texture
+                    // Create Offscreen Texture
                     var desc = renderGraph.GetTextureDesc(resourceData.cameraColor);
                     desc.depthBufferBits = 0;
                     if (settings.colorFormat == FeatureSettings.FormatMode.CameraFormatWithAlpha) {
